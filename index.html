@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta name="viewport" content="initial-scale=1.0">
+    <meta charset="UTF-8">
+    <title>What's Around Me</title>
+
+    <!--<script type="text/javascript"-->
+            <!--src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDj6Yi5oKGv3-tv5gRFBH0lznJ16ztQqAw&libraries=places"></script>-->
+    <style>
+        #map {
+            height: 100%
+        }
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+        }
+        #floating-panel {
+            position: absolute;
+            top: 10px;
+            left: 25%;
+            z-index: 5;
+            background-color: #fff;
+            padding: 5px;
+            border: 1px solid #999;
+            text-align: center;
+            font-family: 'Roboto','sans-serif';
+            line-height: 30px;
+            padding-left: 10px;
+        }
+    </style>
+</head>
+
+<body>
+    <h2>What Places are around me?</h2>
+
+    <!--now filter on distance-->
+
+
+    <div id="map"></div>
+    <div id="floating-panel">
+        <input id="address" type="textbox" value="Pivotal Office London">
+        <select id="placeTypeSelect">
+            <option selected value="restaurant">Restaurants</option>
+            <option value="bar">Bars</option>
+            <option value="church">Churches</option>
+            <option value="florist">Florists</option>
+            <option value="park">Parks</option>
+            <option value="pharmacy">Pharmacies</option>
+            <option value="post_office">Post Offices</option>
+        </select>
+        <input id="submit" type="button" value="Search">
+    </div>
+    <script>
+        var map;
+        var markers = [];
+//        var specialMarker;
+        var infowindow;
+        var service;
+        var debug0;
+        var debug1;
+        function initMap() {
+            map = new google.maps.Map(document.getElementById('map'), {
+                zoom: 17,
+                center: {lat: 51.5258309, lng: -0.0891406000000643}
+            });
+
+            var select = document.getElementById('placeTypeSelect');
+            var placeType = select.options[select.selectedIndex].value;
+
+            infowindow = new google.maps.InfoWindow();
+            service = new google.maps.places.PlacesService(map);
+
+            populatePlaces(map, placeType);
+
+            var geocoder = new google.maps.Geocoder();
+            document.getElementById('submit').addEventListener('click', function() {
+                geocodeAddress(geocoder);
+                populatePlaces(map, placeType);
+            });
+
+            console.log('placeType: ' + placeType);
+
+            map.addListener('dragend', function() {
+                window.setTimeout(populatePlaces, 1000, map, placeType);
+            });
+            select.addEventListener('change', function() {
+                placeType = select.options[select.selectedIndex].value;
+                populatePlaces(map, placeType);
+            })
+        }
+
+        function geocodeAddress(geocoder) {
+            var address = document.getElementById('address').value;
+            geocoder.geocode({'address': address}, function(results, status) {
+                if (status === 'OK') {
+                    clearMarkers();
+                    var location = results[0].geometry.location;
+                    map.setCenter(location);
+
+                    var place = getPlaceDetailsAndCreateMarker(results[0].place_id, true);
+//                    addEventListenerToMarker(marker, place);
+                } else {
+                    alert('Geocode was not successful for the following reason: ' + status);
+                }
+            });
+        }
+
+        function populatePlaces(map, placeType) {
+            console.log('Inside populatePlaces');
+            var request = {
+                location: map.getCenter(),
+                radius: '500',
+                types: [placeType]
+            };
+
+            service.nearbySearch(request, function (results, status) {
+//                console.log('results: ' + results);
+//                console.log(status + ' no. of results: ' + results.length);
+                if (status == google.maps.places.PlacesServiceStatus.OK) {
+                    clearMarkers();
+                    for (var i = 0; i < results.length; i++) {
+                        console.log(results[i]);
+                        var placeId = results[i].place_id;
+                        console.log('Getting details for ' + placeId);
+                        var place = getPlaceDetailsAndCreateMarker(placeId, false);
+//                        addEventListenerToMarker(marker, place);
+                    }
+                }
+            });
+        }
+
+        function getPlaceDetailsAndCreateMarker(placeId, createSpecialMarker) {
+            service.getDetails({
+                placeId: placeId
+//                placeId: placeId.toString()
+            }, function(place, status) {
+                if (status === google.maps.places.PlacesServiceStatus.OK) {
+                    console.log('Got details for ' + placeId);
+                    createMarker(place, createSpecialMarker);
+                    return place;
+                }
+            })
+        }
+
+        function addEventListenerToMarker(marker, place) {
+            google.maps.event.addListener(marker, 'click', function () {
+                infowindow.setContent('<div><strong>' + place.name + '</strong><br>' +
+                    '<p><h4>Place ID: </h4>' + place.place_id + '</p>' +
+                    '<p><h4>Rating:</h4> ' + place.rating + '/5.0</div>' +
+                    '<p><h4>Address:</h4> ' + place.formatted_address + '</p>' +
+                    '<p><h4>Website:</h4> <a href=\"' + place.website + '\" target="_blank">Click Here</a></p></div>');
+                infowindow.open(map, this);
+            });
+        }
+
+        function createMarker(place, createSpecialMarker) {
+            if (createSpecialMarker) {
+                var marker = new google.maps.Marker({
+                    map: map,
+                    position: place.geometry.location,
+                    icon: 'http://maps.google.com/mapfiles/ms/icons/green-dot.png'
+                });
+            } else {
+                var marker = new google.maps.Marker({
+                    map: map,
+                    position: place.geometry.location
+                });
+                markers.push(marker);
+            }
+            addEventListenerToMarker(marker, place);
+        }
+
+        // create special greeeeeeen marker
+        function createSpecialMarker(location) {
+            return createMarker(location, true);
+        }
+
+        function clearMarkers() {
+            for(var i = 0; i < markers.length; i++) {
+                markers[i].setMap(null);
+            }
+        }
+    </script>
+    <script async defer
+            src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBLrBj6m_hTC4DcZot1N81szihvz8oHoY8&callback=initMap&libraries=places">
+    </script>
+</body>
+</html>
