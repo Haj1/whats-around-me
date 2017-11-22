@@ -55,9 +55,9 @@
     <script>
         var map;
         var markers = [];
-//        var specialMarker;
         var infowindow;
         var service;
+        var placeType;
         var debug0;
         var debug1;
         function initMap() {
@@ -67,7 +67,7 @@
             });
 
             var select = document.getElementById('placeTypeSelect');
-            var placeType = select.options[select.selectedIndex].value;
+            placeType = select.options[select.selectedIndex].value;
 
             infowindow = new google.maps.InfoWindow();
             service = new google.maps.places.PlacesService(map);
@@ -79,8 +79,6 @@
                 geocodeAddress(geocoder);
                 populatePlaces(map, placeType);
             });
-
-            console.log('placeType: ' + placeType);
 
             map.addListener('dragend', function() {
                 window.setTimeout(populatePlaces, 1000, map, placeType);
@@ -99,8 +97,8 @@
                     var location = results[0].geometry.location;
                     map.setCenter(location);
 
-                    var place = getPlaceDetailsAndCreateMarker(results[0].place_id, true);
-//                    addEventListenerToMarker(marker, place);
+                    getPlaceDetailsAndCreateMarker(results[0].place_id, true);
+                    populatePlaces(map, placeType);
                 } else {
                     alert('Geocode was not successful for the following reason: ' + status);
                 }
@@ -116,28 +114,26 @@
             };
 
             service.nearbySearch(request, function (results, status) {
-//                console.log('results: ' + results);
-//                console.log(status + ' no. of results: ' + results.length);
                 if (status == google.maps.places.PlacesServiceStatus.OK) {
                     clearMarkers();
+                    console.log('results.length: ' + results.length);
                     for (var i = 0; i < results.length; i++) {
-                        console.log(results[i]);
                         var placeId = results[i].place_id;
-                        console.log('Getting details for ' + placeId);
-                        var place = getPlaceDetailsAndCreateMarker(placeId, false);
-//                        addEventListenerToMarker(marker, place);
+                        getPlaceDetailsAndCreateMarker(placeId, false);
                     }
+                } else {
+                    console.log('Not OK:' + google.maps.places.PlacesServiceStatus);
                 }
             });
         }
 
         function getPlaceDetailsAndCreateMarker(placeId, createSpecialMarker) {
+            console.log('Getting details for ' + placeId);
             service.getDetails({
                 placeId: placeId
-//                placeId: placeId.toString()
             }, function(place, status) {
                 if (status === google.maps.places.PlacesServiceStatus.OK) {
-                    console.log('Got details for ' + placeId);
+                    console.log('Got details for ' + placeId + ' ' + place.name);
                     createMarker(place, createSpecialMarker);
                     return place;
                 }
@@ -156,7 +152,10 @@
         }
 
         function createMarker(place, createSpecialMarker) {
+            console.log('Creating marker for ' + place.place_id);
             if (createSpecialMarker) {
+                console.log('Creating special GREEN marker for ' + place.place_id);
+                // create special greeeeeeen marker
                 var marker = new google.maps.Marker({
                     map: map,
                     position: place.geometry.location,
@@ -170,11 +169,6 @@
                 markers.push(marker);
             }
             addEventListenerToMarker(marker, place);
-        }
-
-        // create special greeeeeeen marker
-        function createSpecialMarker(location) {
-            return createMarker(location, true);
         }
 
         function clearMarkers() {
